@@ -1,6 +1,6 @@
 /*!
  * api/metrics.js — Endpoint de métricas GA4 para Vercel Functions
- * v6 — Modules con dimensión custom module_name
+ * v7 — Manejo de (not set) + módulos con dimensión custom
  */
 
 export default async function handler(req, res) {
@@ -118,7 +118,9 @@ async function fetchGA4Metrics() {
   extractRows(eventsResponse).forEach(function(row) {
     const name = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
     const count = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
-    if (name) events[name] = count;
+    if (name && name !== '(not set)' && name !== 'not set') {
+      events[name] = count;
+    }
   });
 
   // Pages
@@ -174,17 +176,31 @@ async function fetchGA4Metrics() {
   }).catch(function() { return null; });
 
   if (modulesResponse && Array.isArray(modulesResponse)) {
+    let notSetCount = 0;
     extractRows(modulesResponse).forEach(function(row) {
       const name = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
       const count = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
       if (name && count > 0) {
-        modules.push({
-          name: name,
-          label: moduleLabels[name] || name,
-          views: count
-        });
+        if (name === '(not set)' || name === 'not set') {
+          notSetCount += count;
+        } else {
+          modules.push({
+            name: name,
+            label: moduleLabels[name] || name,
+            views: count,
+            estimated: false
+          });
+        }
       }
     });
+    if (notSetCount > 0) {
+      modules.push({
+        name: 'not_set',
+        label: 'No definidos (históricos)',
+        views: notSetCount,
+        estimated: true
+      });
+    }
   }
   modules.sort(function(a, b) { return b.views - a.views; });
 
