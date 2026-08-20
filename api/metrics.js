@@ -1,6 +1,6 @@
 /*!
  * api/metrics.js — Endpoint de métricas GA4 para Vercel Functions
- * v7 — Manejo de (not set) + módulos con dimensión custom
+ * v8 — Geografía con usuarios + vistas
  */
 
 export default async function handler(req, res) {
@@ -72,12 +72,12 @@ async function fetchGA4Metrics() {
     limit: 10
   });
 
-  // Query 4: Geografía
+  // Query 4: Geografía — usuarios + vistas
   const geoResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'country' }],
-    metrics: [{ name: 'activeUsers' }],
+    metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
     limit: 15
   });
 
@@ -131,13 +131,14 @@ async function fetchGA4Metrics() {
     };
   }).sort(function(a, b) { return b.views - a.views; });
 
-  // Geography
+  // Geography — usuarios + vistas
   const geography = extractRows(geoResponse).map(function(row) {
     return {
       country: row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : 'Desconocido',
-      users: parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10)
+      users: parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10),
+      views: parseInt(row.metricValues && row.metricValues[1] ? row.metricValues[1].value : '0', 10)
     };
-  }).sort(function(a, b) { return b.users - a.users; });
+  }).sort(function(a, b) { return b.views - a.views; });
 
   // Devices
   const devices = { desktop: 0, mobile: 0, tablet: 0 };
@@ -176,25 +177,17 @@ async function fetchGA4Metrics() {
   }).catch(function() { return null; });
 
   if (modulesResponse && Array.isArray(modulesResponse)) {
-    let notSetCount = 0;
     extractRows(modulesResponse).forEach(function(row) {
       const name = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
       const count = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
-      if (name && count > 0) {
-        if (name === '(not set)' || name === 'not set') {
-          notSetCount += count;
-        } else {
-          modules.push({
-            name: name,
-            label: moduleLabels[name] || name,
-            views: count,
-            estimated: false
-          });
-        }
+      if (name && count > 0 && name !== '(not set)' && name !== 'not set') {
+        modules.push({
+          name: name,
+          label: moduleLabels[name] || name,
+          views: count
+        });
       }
     });
-    // Los (not set) se ponderan en dashboard.js junto con el histórico
-    // No se muestran como módulo separado
   }
   modules.sort(function(a, b) { return b.views - a.views; });
 
