@@ -1,17 +1,17 @@
 {
   "lastUpdated": "2026-08-20",
-  "totalViewModule": 4433,
+  "totalViewModule": 5722,
   "modules": [
-    { "name": "wallet", "label": "Cartera", "views": 1552, "estimated": true },
-    { "name": "meta_events", "label": "Meta & Eventos", "views": 665, "estimated": true },
-    { "name": "wizards_vault", "label": "Cámara del Brujo", "views": 665, "estimated": true },
-    { "name": "achievements", "label": "Logros", "views": 355, "estimated": true },
-    { "name": "activities", "label": "Actividades", "views": 310, "estimated": true },
-    { "name": "inventory", "label": "Inventario y Personajes", "views": 310, "estimated": true },
-    { "name": "accounts", "label": "Cuentas", "views": 222, "estimated": true },
-    { "name": "raids", "label": "Raids y Strikes", "views": 177, "estimated": true },
-    { "name": "wallet_dashboard", "label": "Dashboard Cartera", "views": 89, "estimated": true },
-    { "name": "wv_objectives_dashboard", "label": "Dashboard Objetivos", "views": 44, "estimated": true },
-    { "name": "welcome", "label": "Bienvenida", "views": 44, "estimated": true }
+    { "name": "wallet", "label": "Cartera", "views": 2003, "estimated": true },
+    { "name": "meta_events", "label": "Meta & Eventos", "views": 858, "estimated": true },
+    { "name": "wizards_vault", "label": "Cámara del Brujo", "views": 858, "estimated": true },
+    { "name": "achievements", "label": "Logros", "views": 458, "estimated": true },
+    { "name": "activities", "label": "Actividades", "views": 401, "estimated": true },
+    { "name": "inventory", "label": "Inventario y Personajes", "views": 401, "estimated": true },
+    { "name": "accounts", "label": "Cuentas", "views": 286, "estimated": true },
+    { "name": "raids", "label": "Raids y Strikes", "views": 229, "estimated": true },
+    { "name": "wallet_dashboard", "label": "Dashboard Cartera", "views": 114, "estimated": true },
+    { "name": "wv_objectives_dashboard", "label": "Dashboard Objetivos", "views": 57, "estimated": true },
+    { "name": "welcome", "label": "Bienvenida", "views": 57, "estimated": true }
   ]
 }
