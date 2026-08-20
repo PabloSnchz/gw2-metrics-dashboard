@@ -78,7 +78,7 @@ async function fetchGA4Metrics() {
     dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'country' }],
     metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
-    limit: 15
+    limit: 25
   });
 
   // Query 5: Dispositivos
