@@ -1,6 +1,6 @@
 /*!
  * js/dashboard.js — Dashboard de Métricas
- * v2 — Carga histórico hardcodeado + endpoint GA4 en vivo
+ * v3 — Sin distinción estimado/real, total en gráfico, banderas
  */
 (function () {
   'use strict';
@@ -72,17 +72,18 @@
         var existing = combinedModules.find(function(hm) { return hm.name === liveModule.name; });
         if (existing) {
           existing.views += liveModule.views;
-          existing.estimated = false;
         } else {
           combinedModules.push({
             name: liveModule.name,
             label: liveModule.label || liveModule.name,
-            views: liveModule.views,
-            estimated: false
+            views: liveModule.views
           });
         }
       });
     }
+
+    // Filtrar módulos "No definidos" (los ponderamos en el JSON histórico)
+    combinedModules = combinedModules.filter(function(m) { return m.name !== 'not_set'; });
 
     combinedModules.sort(function(a, b) { return b.views - a.views; });
 
@@ -122,7 +123,7 @@
 
     var labels = modules.map(function(m) { return m.label || m.name; });
     var values = modules.map(function(m) { return m.views || 0; });
-    var colors = modules.map(function(m) { return m.estimated ? COLORS.warning : COLORS.primary; });
+    var total = values.reduce(function(a, b) { return a + b; }, 0);
 
     new Chart(canvas, {
       type: 'bar',
@@ -131,8 +132,8 @@
         datasets: [{
           label: 'Visitas',
           data: values,
-          backgroundColor: colors.map(function(c) { return c + 'cc'; }),
-          borderColor: colors,
+          backgroundColor: COLORS.primary + 'cc',
+          borderColor: COLORS.primary,
           borderWidth: 1,
           borderRadius: 6
         }]
@@ -144,11 +145,17 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              afterLabel: function(context) {
-                var module = modules[context.dataIndex];
-                return module.estimated ? '⚠️ Estimado (histórico)' : '✅ Dato real';
+              afterLabel: function() {
+                return 'Total: ' + total.toLocaleString('es-AR') + ' vistas';
               }
             }
+          },
+          title: {
+            display: true,
+            text: 'Total: ' + total.toLocaleString('es-AR') + ' vistas',
+            color: '#9aa2b8',
+            font: { size: 12, weight: '600' },
+            padding: { bottom: 10 }
           }
         },
         scales: {
@@ -226,14 +233,41 @@
     });
   }
 
+  // ====== Banderas por país ======
+  function getCountryFlag(country) {
+    var flags = {
+      'Argentina': '🇦🇷',
+      'United States': '🇺🇸',
+      'Colombia': '🇨🇴',
+      'Mexico': '🇲🇽',
+      'Peru': '🇵🇪',
+      'Spain': '🇪🇸',
+      'Chile': '🇨🇱',
+      'Singapore': '🇸🇬',
+      'Brazil': '🇧🇷',
+      'Uruguay': '🇺🇾',
+      'Venezuela': '🇻🇪',
+      'Ecuador': '🇪🇨',
+      'Bolivia': '🇧🇴',
+      'Paraguay': '🇵🇾',
+      'Canada': '🇨🇦',
+      'United Kingdom': '🇬🇧',
+      'Germany': '🇩🇪',
+      'France': '🇫🇷',
+      'Italy': '🇮🇹'
+    };
+    return flags[country] || '🌍';
+  }
+
   // ====== Render geografía ======
   function renderGeography(geography) {
     var host = $('#geoList');
     if (!host || !geography || !geography.length) return;
 
     host.innerHTML = geography.map(function(g) {
+      var flag = getCountryFlag(g.country);
       return '<div class="geo-item">' +
-        '<span class="geo-name">' + esc(g.country) + '</span>' +
+        '<span class="geo-name">' + flag + ' ' + esc(g.country) + '</span>' +
         '<span class="geo-count">' + fmtInt(g.users) + ' 👤</span>' +
         '</div>';
     }).join('');
