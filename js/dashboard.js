@@ -8,8 +8,8 @@
   var LOG = '[MetricsDashboard]';
 
   // ====== Configuración ======
-  var DATA_URL = '/api/metrics';
-
+  var DATA_URL = 'https://gw2-metrics-dashboard.vercel.app/api/metrics';
+  
   // ====== Colores (misma paleta que la Bóveda) ======
   var COLORS = {
     primary: '#7bc2ff',
