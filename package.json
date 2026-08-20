@@ -1,0 +1,8 @@
+{
+  "name": "gw2-metrics-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@google-analytics/data": "^4.0.0"
+  }
+}
