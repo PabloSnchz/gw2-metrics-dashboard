@@ -147,46 +147,41 @@ async function fetchGA4Metrics() {
     else if (cat === 'tablet') devices.tablet = users;
   });
 
-  // Modules (desde view_module events)
+  // Modules — usar pageTitle para inferir el módulo más visitado
   const modules = [];
   const moduleLabels = {
-    wallet: 'Cartera',
-    meta_events: 'Meta & Eventos',
-    achievements: 'Logros',
-    wizards_vault: 'Cámara del Brujo',
-    activities: 'Actividades',
-    inventory: 'Inventario',
-    raids: 'Raids',
-    strikes: 'Strikes',
-    accounts: 'Cuentas',
-    welcome: 'Bienvenida',
-    wallet_dashboard: 'Dashboard Cartera',
-    inventory_dashboard: 'Dashboard Inventario',
-    wv_objectives_dashboard: 'Dashboard Objetivos'
+    'Cartera': 'Cartera',
+    'Meta': 'Meta & Eventos',
+    'Logros': 'Logros',
+    'Cámara del Brujo': 'Cámara del Brujo',
+    'Actividades': 'Actividades',
+    'Inventario': 'Inventario y Personajes',
+    'Raids': 'Raids y Strikes',
+    'Cuentas': 'Cuentas'
   };
 
-  // Intentar extraer módulos de view_module events con custom dimension
-  const modulesResponse = await client.runReport({
-    property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
-    dimensions: [{ name: 'customEvent:module_name' }],
-    metrics: [{ name: 'eventCount' }],
-    limit: 20
-  }).catch(function() { return null; });
+  // Usar las páginas que ya tenemos para inferir módulos
+  pages.forEach(function(page) {
+    const title = page.title || '';
+    if (title.indexOf('Cartera') !== -1 || title.indexOf('Divisas') !== -1) {
+      modules.push({ name: 'wallet', label: 'Cartera', views: page.views });
+    } else if (title.indexOf('Meta') !== -1) {
+      modules.push({ name: 'meta_events', label: 'Meta & Eventos', views: page.views });
+    } else if (title.indexOf('Logros') !== -1) {
+      modules.push({ name: 'achievements', label: 'Logros', views: page.views });
+    } else if (title.indexOf('Cámara del Brujo') !== -1) {
+      modules.push({ name: 'wizards_vault', label: 'Cámara del Brujo', views: page.views });
+    } else if (title.indexOf('Actividades') !== -1) {
+      modules.push({ name: 'activities', label: 'Actividades', views: page.views });
+    } else if (title.indexOf('Inventario') !== -1) {
+      modules.push({ name: 'inventory', label: 'Inventario y Personajes', views: page.views });
+    } else if (title.indexOf('Raids') !== -1) {
+      modules.push({ name: 'raids', label: 'Raids y Strikes', views: page.views });
+    } else if (title.indexOf('Cuentas') !== -1) {
+      modules.push({ name: 'accounts', label: 'Cuentas', views: page.views });
+    }
+  });
 
-  if (modulesResponse && Array.isArray(modulesResponse)) {
-    extractRows(modulesResponse).forEach(function(row) {
-      const name = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
-      const count = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
-      if (name && count > 0) {
-        modules.push({
-          name: name,
-          label: moduleLabels[name] || name,
-          views: count
-        });
-      }
-    });
-  }
   modules.sort(function(a, b) { return b.views - a.views; });
 
   return {
