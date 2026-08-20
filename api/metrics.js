@@ -193,14 +193,8 @@ async function fetchGA4Metrics() {
         }
       }
     });
-    if (notSetCount > 0) {
-      modules.push({
-        name: 'not_set',
-        label: 'No definidos (históricos)',
-        views: notSetCount,
-        estimated: true
-      });
-    }
+    // Los (not set) se ponderan en dashboard.js junto con el histórico
+    // No se muestran como módulo separado
   }
   modules.sort(function(a, b) { return b.views - a.views; });
 
