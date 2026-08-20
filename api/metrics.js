@@ -1,9 +1,9 @@
 /*!
  * api/metrics.js — Endpoint de métricas GA4 para Vercel Functions
+ * v2 — Query simplificada sin dimensionFilter problemático
  */
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -45,21 +45,7 @@ async function fetchGA4Metrics() {
     ]
   });
 
-  // Query 2: Módulos más visitados
-  const modulesResponse = await client.runReport({
-    property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
-    dimensions: [{ name: 'customEvent:module_name' }],
-    metrics: [{ name: 'eventCount' }],
-    dimensionFilter: {
-      filter: {
-        fieldName: 'eventName',
-        stringFilter: { matchType: 'EXACT', value: 'view_module' }
-      }
-    }
-  });
-
-  // Query 3: Eventos clave
+  // Query 2: Eventos recientes (todos, sin filtro problemático)
   const eventsResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
@@ -68,7 +54,7 @@ async function fetchGA4Metrics() {
     limit: 25
   });
 
-  // Query 4: Geografía
+  // Query 3: Geografía
   const geoResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
@@ -77,7 +63,7 @@ async function fetchGA4Metrics() {
     limit: 10
   });
 
-  // Query 5: Dispositivos
+  // Query 4: Dispositivos
   const devicesResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
@@ -97,32 +83,6 @@ async function fetchGA4Metrics() {
     summary.avgSessionMinutes = Math.round((parseFloat(row.metricValues[3]?.value || '0') / 60) * 10) / 10;
   }
 
-  // Modules
-  const moduleLabels = {
-    wallet: 'Cartera',
-    meta_events: 'Meta & Eventos',
-    achievements: 'Logros',
-    wizards_vault: 'Cámara del Brujo',
-    activities: 'Actividades',
-    inventory: 'Inventario',
-    raids: 'Raids',
-    strikes: 'Strikes',
-    accounts: 'Cuentas',
-    welcome: 'Bienvenida',
-    wallet_dashboard: 'Dashboard Cartera',
-    inventory_dashboard: 'Dashboard Inventario',
-    wv_objectives_dashboard: 'Dashboard Objetivos'
-  };
-
-  const modules = (modulesResponse.rows || []).map(function(row) {
-    const name = row.dimensionValues[0]?.value || 'unknown';
-    return {
-      name: name,
-      label: moduleLabels[name] || name,
-      views: parseInt(row.metricValues[0]?.value || '0')
-    };
-  }).sort(function(a, b) { return b.views - a.views; });
-
   // Events
   const events = {};
   (eventsResponse.rows || []).forEach(function(row) {
@@ -132,6 +92,9 @@ async function fetchGA4Metrics() {
       events[name] = count;
     }
   });
+
+  // Módulos — placeholder (después vemos cómo extraerlos)
+  const modules = [];
 
   // Geography
   const geography = (geoResponse.rows || []).map(function(row) {
