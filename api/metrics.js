@@ -1,6 +1,6 @@
 /*!
  * api/metrics.js — Endpoint de métricas GA4 para Vercel Functions
- * v8 — Geografía con usuarios + vistas
+ * v9 — Test: geografía cruda para diagnóstico
  */
 
 export default async function handler(req, res) {
@@ -72,13 +72,13 @@ async function fetchGA4Metrics() {
     limit: 10
   });
 
-  // Query 4: Geografía — usuarios + vistas
+  // Query 4: Geografía — TEST CRUDO
   const geoResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'country' }],
     metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
-    limit: 25
+    limit: 100
   });
 
   // Query 5: Dispositivos
@@ -198,6 +198,7 @@ async function fetchGA4Metrics() {
     pages: pages,
     geography: geography,
     devices: devices,
-    modules: modules
+    modules: modules,
+    _geoRaw: geoResponse
   };
 }
