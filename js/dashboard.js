@@ -8,7 +8,7 @@
   var LOG = '[MetricsDashboard]';
 
   // ====== Configuración ======
-  var DATA_URL = 'data/ga4-events.json';
+  var DATA_URL = '/api/metrics';
 
   // ====== Colores (misma paleta que la Bóveda) ======
   var COLORS = {
