@@ -36,7 +36,7 @@ async function fetchGA4Metrics() {
   // Query 1: Resumen general
   const summaryResponse = await client.runReport({
     property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     metrics: [
       { name: 'activeUsers' },
       { name: 'sessions' },
@@ -48,7 +48,7 @@ async function fetchGA4Metrics() {
   // Query 2: Eventos recientes (todos, sin filtro problemático)
   const eventsResponse = await client.runReport({
     property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'eventName' }],
     metrics: [{ name: 'eventCount' }],
     limit: 25
@@ -57,7 +57,7 @@ async function fetchGA4Metrics() {
   // Query 3: Geografía
   const geoResponse = await client.runReport({
     property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'country' }],
     metrics: [{ name: 'activeUsers' }],
     limit: 10
@@ -66,7 +66,7 @@ async function fetchGA4Metrics() {
   // Query 4: Dispositivos
   const devicesResponse = await client.runReport({
     property: `properties/${propertyId}`,
-    dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'deviceCategory' }],
     metrics: [{ name: 'activeUsers' }]
   });
