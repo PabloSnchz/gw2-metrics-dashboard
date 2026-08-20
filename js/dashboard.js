@@ -1,6 +1,6 @@
 /*!
  * js/dashboard.js — Dashboard de Métricas
- * v3 — Sin distinción estimado/real, total en gráfico, banderas
+ * v4 — Geografía con %, layout 2 líneas, total en gráfico
  */
 (function () {
   'use strict';
@@ -254,7 +254,8 @@
       'United Kingdom': '🇬🇧',
       'Germany': '🇩🇪',
       'France': '🇫🇷',
-      'Italy': '🇮🇹'
+      'Italy': '🇮🇹',
+      'China': '🇨🇳'
     };
     return flags[country] || '🌍';
   }
@@ -264,11 +265,19 @@
     var host = $('#geoList');
     if (!host || !geography || !geography.length) return;
 
+    // Calcular total de usuarios para porcentajes
+    var totalUsers = geography.reduce(function(sum, g) { return sum + (g.users || 0); }, 0);
+
     host.innerHTML = geography.map(function(g) {
       var flag = getCountryFlag(g.country);
+      var pct = totalUsers > 0 ? Math.round((g.users / totalUsers) * 100) : 0;
+      var countryName = g.country === '(not set)' ? 'Desconocido' : g.country;
+      
       return '<div class="geo-item">' +
-        '<span class="geo-name">' + flag + ' ' + esc(g.country) + '</span>' +
-        '<span class="geo-count">' + fmtInt(g.users) + ' 👤 · ' + fmtInt(g.views) + ' vistas</span>' +
+        '<div class="geo-info">' +
+          '<span class="geo-name">' + flag + ' ' + esc(countryName) + '</span>' +
+          '<span class="geo-stats">' + pct + '% 👤 · ' + fmtInt(g.views) + ' vistas</span>' +
+        '</div>' +
         '</div>';
     }).join('');
   }
