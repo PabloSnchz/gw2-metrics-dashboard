@@ -1,0 +1,37 @@
+{
+  "lastUpdated": "2026-08-19T12:00:00Z",
+  "summary": {
+    "activeUsers": 27,
+    "sessions": 145,
+    "pageViews": 890,
+    "avgSessionMinutes": 4.5
+  },
+  "modules": [
+    { "name": "wallet", "label": "Cartera", "views": 320 },
+    { "name": "meta_events", "label": "Meta & Eventos", "views": 180 },
+    { "name": "wizards_vault", "label": "Cámara del Brujo", "views": 150 },
+    { "name": "inventory", "label": "Inventario", "views": 95 },
+    { "name": "raids", "label": "Raids", "views": 70 },
+    { "name": "achievements", "label": "Logros", "views": 45 },
+    { "name": "strikes", "label": "Strikes", "views": 30 }
+  ],
+  "events": {
+    "add_api_key": 12,
+    "export_backup": 8,
+    "open_account_wizard": 5,
+    "force_reload_season": 15,
+    "open_api_keys_modal": 25,
+    "delete_api_key": 3,
+    "import_backup": 2
+  },
+  "geography": [
+    { "country": "Argentina", "users": 22 },
+    { "country": "Chile", "users": 3 },
+    { "country": "México", "users": 2 }
+  ],
+  "devices": {
+    "desktop": 23,
+    "mobile": 4,
+    "tablet": 0
+  }
+}
