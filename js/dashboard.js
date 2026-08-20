@@ -268,7 +268,7 @@
       var flag = getCountryFlag(g.country);
       return '<div class="geo-item">' +
         '<span class="geo-name">' + flag + ' ' + esc(g.country) + '</span>' +
-        '<span class="geo-count">' + fmtInt(g.users) + ' 👤</span>' +
+        '<span class="geo-count">' + fmtInt(g.users) + ' 👤 · ' + fmtInt(g.views) + ' vistas</span>' +
         '</div>';
     }).join('');
   }
