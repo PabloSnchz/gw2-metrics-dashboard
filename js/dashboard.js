@@ -1,6 +1,6 @@
 /*!
  * js/dashboard.js — Dashboard de Métricas
- * Lee data/ga4-events.json y renderiza los gráficos
+ * v2 — Carga histórico hardcodeado + endpoint GA4 en vivo
  */
 (function () {
   'use strict';
@@ -8,8 +8,9 @@
   var LOG = '[MetricsDashboard]';
 
   // ====== Configuración ======
+  var HISTORICAL_URL = 'data/historical-modules.json';
   var DATA_URL = 'https://gw2-metrics-dashboard.vercel.app/api/metrics';
-  
+
   // ====== Colores (misma paleta que la Bóveda) ======
   var COLORS = {
     primary: '#7bc2ff',
@@ -27,15 +28,71 @@
   function esc(s) { return String(s || '').replace(/[&<>]/g, function(m) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]); }); }
 
   // ====== Cargar datos ======
-  async function loadData() {
+  async function loadHistorical() {
+    try {
+      var res = await fetch(HISTORICAL_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) {
+      console.warn(LOG, 'Error cargando histórico:', e);
+      return { modules: [] };
+    }
+  }
+
+  async function loadLive() {
     try {
       var res = await fetch(DATA_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       return await res.json();
     } catch (e) {
-      console.error(LOG, 'Error cargando datos:', e);
+      console.warn(LOG, 'Error cargando datos en vivo:', e);
       return null;
     }
+  }
+
+  async function loadAllData() {
+    var historical = await loadHistorical();
+    var live = await loadLive();
+
+    if (!live) {
+      return {
+        summary: { activeUsers: 0, newUsers: 0, sessions: 0, pageViews: 0, avgSessionMinutes: 0 },
+        events: {},
+        geography: [],
+        devices: { desktop: 0, mobile: 0, tablet: 0 },
+        modules: historical.modules || []
+      };
+    }
+
+    // Combinar módulos históricos + módulos nuevos
+    var combinedModules = (historical.modules || []).slice();
+    
+    if (live.modules && live.modules.length) {
+      live.modules.forEach(function(liveModule) {
+        var existing = combinedModules.find(function(hm) { return hm.name === liveModule.name; });
+        if (existing) {
+          existing.views += liveModule.views;
+          existing.estimated = false;
+        } else {
+          combinedModules.push({
+            name: liveModule.name,
+            label: liveModule.label || liveModule.name,
+            views: liveModule.views,
+            estimated: false
+          });
+        }
+      });
+    }
+
+    combinedModules.sort(function(a, b) { return b.views - a.views; });
+
+    return {
+      summary: live.summary || { activeUsers: 0, newUsers: 0, sessions: 0, pageViews: 0, avgSessionMinutes: 0 },
+      events: live.events || {},
+      geography: live.geography || [],
+      devices: live.devices || { desktop: 0, mobile: 0, tablet: 0 },
+      modules: combinedModules
+    };
   }
 
   // ====== Render KPIs ======
@@ -44,10 +101,10 @@
     if (!host || !summary) return;
 
     var kpis = [
-      { label: 'Usuarios activos', value: summary.activeUsers, color: COLORS.primary },
-      { label: 'Sesiones', value: summary.sessions, color: COLORS.success },
-      { label: 'Vistas de página', value: summary.pageViews, color: COLORS.warning },
-      { label: 'Tiempo promedio (min)', value: summary.avgSessionMinutes, color: COLORS.purple }
+      { label: 'Usuarios activos', value: summary.activeUsers || 0, color: COLORS.primary },
+      { label: 'Sesiones', value: summary.sessions || 0, color: COLORS.success },
+      { label: 'Vistas de página', value: summary.pageViews || 0, color: COLORS.warning },
+      { label: 'Tiempo promedio (min)', value: summary.avgSessionMinutes || 0, color: COLORS.purple }
     ];
 
     host.innerHTML = kpis.map(function(kpi) {
@@ -65,6 +122,7 @@
 
     var labels = modules.map(function(m) { return m.label || m.name; });
     var values = modules.map(function(m) { return m.views || 0; });
+    var colors = modules.map(function(m) { return m.estimated ? COLORS.warning : COLORS.primary; });
 
     new Chart(canvas, {
       type: 'bar',
@@ -73,8 +131,8 @@
         datasets: [{
           label: 'Visitas',
           data: values,
-          backgroundColor: COLORS.primary + 'cc',
-          borderColor: COLORS.primary,
+          backgroundColor: colors.map(function(c) { return c + 'cc'; }),
+          borderColor: colors,
           borderWidth: 1,
           borderRadius: 6
         }]
@@ -83,7 +141,15 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false }
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              afterLabel: function(context) {
+                var module = modules[context.dataIndex];
+                return module.estimated ? '⚠️ Estimado (histórico)' : '✅ Dato real';
+              }
+            }
+          }
         },
         scales: {
           y: {
@@ -105,28 +171,35 @@
     var canvas = $('#eventsChart');
     if (!canvas || !events) return;
 
+    var eventLabels = {
+      'view_module': 'Navegación entre módulos',
+      'page_view': 'Vistas de página',
+      'scroll': 'Scroll',
+      'user_engagement': 'Interacción',
+      'session_start': 'Sesiones iniciadas',
+      'open_api_keys_modal': 'Modal de keys',
+      'click': 'Clicks',
+      'first_visit': 'Primeras visitas',
+      'add_api_key': 'Keys agregadas',
+      'form_start': 'Formularios iniciados',
+      'export_backup': 'Backups exportados',
+      'import_backup': 'Backups importados',
+      'open_account_wizard': 'Asistente abierto',
+      'delete_api_key': 'Keys eliminadas',
+      'download_excel_template': 'Plantillas descargadas',
+      'force_reload_season': 'Recargas temporada'
+    };
+
     var entries = Object.entries(events).filter(function(e) { return e[1] > 0; });
     if (!entries.length) return;
 
-    var labels = entries.map(function(e) {
-      var names = {
-        'add_api_key': 'Keys agregadas',
-        'export_backup': 'Backups exportados',
-        'import_backup': 'Backups importados',
-        'open_account_wizard': 'Asistente abierto',
-        'download_excel_template': 'Plantillas descargadas',
-        'enrich_with_api': 'Enriquecimientos API',
-        'encrypt_accounts_file': 'Archivos .enc creados',
-        'force_reload_season': 'Recargas temporada',
-        'open_api_keys_modal': 'Modal keys abierto',
-        'delete_api_key': 'Keys eliminadas'
-      };
-      return names[e[0]] || e[0];
-    });
+    var labels = entries.map(function(e) { return eventLabels[e[0]] || e[0]; });
     var values = entries.map(function(e) { return e[1]; });
     var colors = [
       COLORS.primary, COLORS.success, COLORS.warning, COLORS.danger,
-      COLORS.purple, COLORS.gold, COLORS.neutral, '#8ab4f8', '#c3e88d', '#ff8a80'
+      COLORS.purple, COLORS.gold, COLORS.neutral, '#8ab4f8',
+      '#c3e88d', '#ff8a80', '#c5cae9', '#ffcc80',
+      '#80cbc4', '#f48fb1', '#b39ddb', '#ffe082'
     ];
 
     new Chart(canvas, {
@@ -146,7 +219,7 @@
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { color: '#9aa2b8', font: { size: 11 } }
+            labels: { color: '#9aa2b8', font: { size: 10 } }
           }
         }
       }
@@ -176,6 +249,8 @@
       { label: 'Mobile', value: devices.mobile || 0, color: COLORS.success },
       { label: 'Tablet', value: devices.tablet || 0, color: COLORS.warning }
     ].filter(function(d) { return d.value > 0; });
+
+    if (!data.length) return;
 
     new Chart(canvas, {
       type: 'pie',
@@ -219,13 +294,13 @@
   // ====== Init ======
   async function init() {
     console.log(LOG, 'Cargando dashboard...');
-    var data = await loadData();
+    var data = await loadAllData();
     if (!data) {
       $('#kpiGrid').innerHTML = '<p class="subtitle" style="text-align:center;padding:20px;">❌ No se pudieron cargar los datos.</p>';
       return;
     }
 
-    renderTimestamp(data.lastUpdated);
+    renderTimestamp(data.lastUpdated || new Date().toISOString());
     renderKPIs(data.summary);
     renderModules(data.modules);
     renderEvents(data.events);
