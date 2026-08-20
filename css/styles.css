@@ -127,26 +127,33 @@ body {
 
 .geo-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 14px;
+    flex-direction: column;
+    padding: 12px 14px;
     background: #0a0c10;
     border: 1px solid #1e2028;
     border-radius: 10px;
+    gap: 4px;
+}
+
+.geo-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .geo-name {
     font-weight: 600;
     color: #cfd2d8;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.geo-count {
-    font-weight: 700;
+.geo-stats {
+    font-weight: 500;
     color: #7bc2ff;
-    background: #1a1c24;
-    padding: 2px 10px;
-    border-radius: 16px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
 }
 
 /* ====== Footer ====== */
