@@ -1,6 +1,6 @@
 /*!
  * api/metrics.js — Endpoint de métricas GA4 para Vercel Functions
- * v4 — Diagnóstico detallado
+ * v5 — Parsing correcto de respuestas anidadas
  */
 
 export default async function handler(req, res) {
@@ -17,12 +17,15 @@ export default async function handler(req, res) {
     res.status(200).json(metrics);
   } catch (e) {
     console.error('[Metrics] Error:', e);
-    res.status(500).json({ 
-      error: e.message || 'Internal error',
-      stack: e.stack,
-      details: e.details || null
-    });
+    res.status(500).json({ error: e.message || 'Internal error' });
   }
+}
+
+function extractRows(response) {
+  if (!response || !Array.isArray(response)) return [];
+  const first = response[0];
+  if (!first || !first.rows || !Array.isArray(first.rows)) return [];
+  return first.rows;
 }
 
 async function fetchGA4Metrics() {
@@ -36,35 +39,163 @@ async function fetchGA4Metrics() {
   });
 
   const propertyId = process.env.GA4_PROPERTY_ID;
-  
-  // Test 1: Query mínima — solo activeUsers
-  console.log('[Test] Iniciando query mínima...');
-  
-  const testResponse = await client.runReport({
+
+  // Query 1: Summary general
+  const summaryResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
-    metrics: [{ name: 'activeUsers' }]
+    metrics: [
+      { name: 'activeUsers' },
+      { name: 'newUsers' },
+      { name: 'sessions' },
+      { name: 'screenPageViews' },
+      { name: 'averageSessionDuration' },
+      { name: 'eventCount' }
+    ]
   });
-  
-  console.log('[Test] Query mínima devolvió:', JSON.stringify(testResponse));
 
-  // Test 2: Query de eventos
-  console.log('[Test] Iniciando query de eventos...');
-  
+  // Query 2: Eventos
   const eventsResponse = await client.runReport({
     property: `properties/${propertyId}`,
     dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
     dimensions: [{ name: 'eventName' }],
     metrics: [{ name: 'eventCount' }],
+    limit: 50
+  });
+
+  // Query 3: Páginas
+  const pagesResponse = await client.runReport({
+    property: `properties/${propertyId}`,
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+    dimensions: [{ name: 'pageTitle' }],
+    metrics: [{ name: 'screenPageViews' }],
     limit: 10
   });
+
+  // Query 4: Geografía
+  const geoResponse = await client.runReport({
+    property: `properties/${propertyId}`,
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+    dimensions: [{ name: 'country' }],
+    metrics: [{ name: 'activeUsers' }],
+    limit: 15
+  });
+
+  // Query 5: Dispositivos
+  const devicesResponse = await client.runReport({
+    property: `properties/${propertyId}`,
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+    dimensions: [{ name: 'deviceCategory' }],
+    metrics: [{ name: 'activeUsers' }]
+  });
+
+  // ====== Parsear con extractRows ======
   
-  console.log('[Test] Query de eventos devolvió:', JSON.stringify(eventsResponse));
+  // Summary
+  const summary = {
+    activeUsers: 0,
+    newUsers: 0,
+    sessions: 0,
+    pageViews: 0,
+    avgSessionMinutes: 0,
+    totalEvents: 0
+  };
+  
+  const summaryRows = extractRows(summaryResponse);
+  if (summaryRows.length > 0) {
+    const row = summaryRows[0];
+    const vals = row.metricValues || [];
+    summary.activeUsers = parseInt(vals[0]?.value || '0', 10);
+    summary.newUsers = parseInt(vals[1]?.value || '0', 10);
+    summary.sessions = parseInt(vals[2]?.value || '0', 10);
+    summary.pageViews = parseInt(vals[3]?.value || '0', 10);
+    summary.avgSessionMinutes = Math.round((parseFloat(vals[4]?.value || '0') / 60) * 10) / 10;
+    summary.totalEvents = parseInt(vals[5]?.value || '0', 10);
+  }
+
+  // Events
+  const events = {};
+  extractRows(eventsResponse).forEach(function(row) {
+    const name = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
+    const count = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
+    if (name) events[name] = count;
+  });
+
+  // Pages
+  const pages = extractRows(pagesResponse).map(function(row) {
+    return {
+      title: row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '',
+      views: parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10)
+    };
+  }).sort(function(a, b) { return b.views - a.views; });
+
+  // Geography
+  const geography = extractRows(geoResponse).map(function(row) {
+    return {
+      country: row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : 'Desconocido',
+      users: parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10)
+    };
+  }).sort(function(a, b) { return b.users - a.users; });
+
+  // Devices
+  const devices = { desktop: 0, mobile: 0, tablet: 0 };
+  extractRows(devicesResponse).forEach(function(row) {
+    const cat = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
+    const users = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
+    if (cat === 'desktop') devices.desktop = users;
+    else if (cat === 'mobile') devices.mobile = users;
+    else if (cat === 'tablet') devices.tablet = users;
+  });
+
+  // Modules (desde view_module events)
+  const modules = [];
+  const moduleLabels = {
+    wallet: 'Cartera',
+    meta_events: 'Meta & Eventos',
+    achievements: 'Logros',
+    wizards_vault: 'Cámara del Brujo',
+    activities: 'Actividades',
+    inventory: 'Inventario',
+    raids: 'Raids',
+    strikes: 'Strikes',
+    accounts: 'Cuentas',
+    welcome: 'Bienvenida',
+    wallet_dashboard: 'Dashboard Cartera',
+    inventory_dashboard: 'Dashboard Inventario',
+    wv_objectives_dashboard: 'Dashboard Objetivos'
+  };
+
+  // Intentar extraer módulos de view_module events con custom dimension
+  const modulesResponse = await client.runReport({
+    property: `properties/${propertyId}`,
+    dateRanges: [{ startDate: '90daysAgo', endDate: 'today' }],
+    dimensions: [{ name: 'customEvent:module_name' }],
+    metrics: [{ name: 'eventCount' }],
+    limit: 20
+  }).catch(function() { return null; });
+
+  if (modulesResponse && Array.isArray(modulesResponse)) {
+    extractRows(modulesResponse).forEach(function(row) {
+      const name = row.dimensionValues && row.dimensionValues[0] ? row.dimensionValues[0].value : '';
+      const count = parseInt(row.metricValues && row.metricValues[0] ? row.metricValues[0].value : '0', 10);
+      if (name && count > 0) {
+        modules.push({
+          name: name,
+          label: moduleLabels[name] || name,
+          views: count
+        });
+      }
+    });
+  }
+  modules.sort(function(a, b) { return b.views - a.views; });
 
   return {
     lastUpdated: new Date().toISOString(),
-    testResponse: testResponse,
-    eventsResponse: eventsResponse,
-    propertyId: propertyId
+    summary: summary,
+    events: events,
+    pages: pages,
+    geography: geography,
+    devices: devices,
+    modules: modules
   };
 }
